@@ -607,31 +607,10 @@
         <div id="setup" class="tab-content">
             <div class="setup-box">
                 <h3>📋 Setup Google Sheets Integration</h3>
-                <p><strong>One-time setup for family sharing:</strong></p>
-                <ol>
-                    <li><strong>Create Google Sheet:</strong>
-                        <ul>
-                            <li>Go to <a href="https://sheets.google.com" target="_blank">sheets.google.com</a></li>
-                            <li>Create new blank spreadsheet</li>
-                            <li>Name it "Development Tracker"</li>
-                        </ul>
-                    </li>
-                    <li><strong>Set up column headers in Row 1:</strong><br>
-                        <div style="background: #f0f0f0; padding: 10px; margin: 5px 0; border-radius: 5px; font-family: monospace; font-size: 12px;">
-                            Date | Time | Type | Entered By | Item/Word | Modality | Amount/Clarity | Reaction/Context | Frequency | Eye Contact | Engagement | Notes
-                        </div>
-                    </li>
-                    <li><strong>Share the sheet:</strong> Click "Share" → "Anyone with the link" → "Editor"</li>
-                    <li><strong>Create Apps Script:</strong>
-                        <ul>
-                            <li>Go to <a href="https://script.google.com" target="_blank">script.google.com</a></li>
-                            <li>Create new project</li>
-                            <li>Replace Code.gs with the provided Apps Script code</li>
-                            <li>Deploy as Web App with "Anyone" access</li>
-                        </ul>
-                    </li>
-                    <li><strong>Configure below</strong> with your details</li>
-                </ol>
+                <p>The instructions below are for reference. Your sheet should already be configured with the final column layout.</p>
+                <div style="background: #f0f0f0; padding: 10px; margin: 5px 0; border-radius: 5px; font-family: monospace; font-size: 11px; word-wrap: break-word;">
+                    Date | Time | Type | Entered By | Item | Word | Activity | Modality | Amount | Clarity | Reaction | Context | Frequency | Eye Contact | Engagement | Notes
+                </div>
             </div>
 
             <div class="form-group">
@@ -1105,38 +1084,46 @@
         }
 
         function convertSheetDataToEntries(sheetData) {
+            if (!sheetData || sheetData.length < 2) {
+                return []; // No data to convert
+            }
             const convertedEntries = [];
-            const headers = sheetData[0].map(h => h.toLowerCase().trim());
-            
-            // Create a map of header names to their column index for robustness
+            const headers = sheetData[0].map(h => h.toLowerCase().trim().replace(/\s+/g, '')); // Make headers consistent: lowercase, no spaces
+
             const headerMap = {};
             headers.forEach((header, index) => {
                 headerMap[header] = index;
             });
             
+            // Check for essential headers
+            if (headerMap['date'] === undefined || headerMap['type'] === undefined) {
+                console.error("Essential headers 'Date' or 'Type' not found in sheet.");
+                return [];
+            }
+
             for (let i = 1; i < sheetData.length; i++) {
                 const row = sheetData[i];
-                if (row.length < 4) continue;
-                
+                const type = (row[headerMap['type']] || '').toLowerCase();
+                if (!type) continue; // Skip rows without a type
+
                 try {
                     const date = row[headerMap['date']];
                     const time = row[headerMap['time']];
-                    if (!date) continue; // Skip rows without a date
-                    
+                    if (!date) continue;
+
                     const dateTime = new Date(`${date} ${time || '00:00'}`);
                     if (isNaN(dateTime.getTime())) continue;
 
-                    const type = row[headerMap['type']];
-                    
                     const entry = {
                         date: date,
                         time: time || '',
                         type: type,
-                        enteredBy: row[headerMap['entered by']] || '',
-                        timestamp: dateTime.getTime()
+                        enteredBy: row[headerMap['enteredby']] || '',
+                        timestamp: dateTime.getTime(),
+                        data: {}
                     };
 
-                    if (entry.type === 'food') {
+                    if (type === 'food') {
                         entry.data = {
                             item: row[headerMap['item']] || '',
                             type: row[headerMap['modality']] || '',
@@ -1144,7 +1131,7 @@
                             reaction: row[headerMap['reaction']] || '',
                             notes: row[headerMap['notes']] || ''
                         };
-                    } else if (entry.type === 'words') {
+                    } else if (type === 'words') {
                         entry.data = {
                             word: row[headerMap['word']] || '',
                             modality: row[headerMap['modality']] || '',
@@ -1153,28 +1140,34 @@
                             frequency: row[headerMap['frequency']] || '',
                             notes: row[headerMap['notes']] || ''
                         };
-                    } else if (entry.type === 'social') {
+                    } else if (type === 'social') {
+                        let notes = row[headerMap['notes']] || '';
+                        let person = '';
+                        // Parse person from notes
+                        if (notes.startsWith('Person: ')) {
+                            const parts = notes.split('. ');
+                            person = parts[0].replace('Person: ', '');
+                            notes = parts.slice(1).join('. ');
+                        }
+                        
                         entry.data = {
-                            person: '', // This will be parsed from notes if needed
+                            person: person,
                             activity: row[headerMap['activity']] || '',
-                            eyeContact: row[headerMap['eye contact']] || '',
+                            eyeContact: row[headerMap['eyecontact']] || '',
                             engagement: row[headerMap['engagement']] || '',
-                            notes: row[headerMap['notes']] || ''
+                            notes: notes
                         };
                     }
+                    
+                    convertedEntries.push(entry);
 
-                    if (entry.data) {
-                        convertedEntries.push(entry);
-                    }
                 } catch (error) {
                     console.error('Error converting row:', row, error);
-                    continue; // Skip malformed rows
+                    continue;
                 }
             }
-            
             return convertedEntries;
         }
-
 
         async function refreshFromSheets() {
             if (!isConnected) {
@@ -1295,7 +1288,7 @@
                     if (entry.data.notes) html += `<br>Notes: ${entry.data.notes}`;
                     
                 } else if (entry.type === 'social') {
-                    html += `<strong>Interaction</strong> during <strong>${entry.data.activity}</strong><br>`;
+                    html += `<strong>Interaction with ${entry.data.person || 'someone'}</strong> during <strong>${entry.data.activity}</strong><br>`;
                     html += `Eye contact: ${entry.data.eyeContact}, Engagement: ${entry.data.engagement}`;
                     if (entry.data.notes) html += `<br>Notes: ${entry.data.notes}`;
                 }
