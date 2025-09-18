@@ -407,7 +407,6 @@
             <button class="tab-button" onclick="showTab('setup')">⚙️ Setup</button>
         </div>
 
-        <!-- Food Tab -->
         <div id="food" class="tab-content active">
             <div class="form-group">
                 <label for="foodItem">Food Item</label>
@@ -457,7 +456,6 @@
             <button class="save-button" onclick="saveEntry('food')">Save Food Entry</button>
         </div>
 
-        <!-- Words Tab -->
         <div id="words" class="tab-content">
             <div class="form-group">
                 <label for="wordSaid">Word/Sound</label>
@@ -519,7 +517,6 @@
             <button class="save-button" onclick="saveEntry('words')">Save Word Entry</button>
         </div>
 
-        <!-- Social Tab -->
         <div id="social" class="tab-content">
             <div class="form-group">
                 <label for="socialPerson">Person/People</label>
@@ -578,7 +575,6 @@
             <button class="save-button" onclick="saveEntry('social')">Save Social Entry</button>
         </div>
 
-        <!-- View Data Tab -->
         <div id="view" class="tab-content">
             <div class="stats-grid">
                 <div class="stat-card">
@@ -608,7 +604,6 @@
             <div id="allEntries"></div>
         </div>
 
-        <!-- Setup Tab -->
         <div id="setup" class="tab-content">
             <div class="setup-box">
                 <h3>📋 Setup Google Sheets Integration</h3>
@@ -671,8 +666,8 @@
         let entries = [];
         let selectedRatings = {};
         let currentUser = localStorage.getItem('currentUser') || '';
-        let sheetId = localStorage.getItem('sheetId') || '1jBwiyD-Rzggur8P-cWtNuOCE8khnUurl6JzPVn8ZDUo';
-        let WEB_APP_URL = localStorage.getItem('webAppUrl') || 'https://script.google.com/macros/s/AKfycbyVy-kH4uHpv1jbLDbbxBa9A9Ln7binwPUsQlDQeHBR_Ulqc-iefnXOf7SbiQW9COpLxg/exec';
+        let sheetId = localStorage.getItem('sheetId') || '';
+        let WEB_APP_URL = localStorage.getItem('webAppUrl') || '';
         let isConnected = false;
         let lastSyncTime = localStorage.getItem('lastSyncTime') || '';
         let isOnline = navigator.onLine;
@@ -742,7 +737,7 @@
                 return;
             }
             
-            if (sheetId && currentUser && WEB_APP_URL && !WEB_APP_URL.includes('YOUR_WEB_APP_ID')) {
+            if (sheetId && currentUser && WEB_APP_URL) {
                 statusEl.textContent = '✅ Connected';
                 statusEl.className = 'connection-status connected';
                 isConnected = true;
@@ -951,7 +946,7 @@
         }
 
         function formatEntryForSheets(entry) {
-            // This function creates a 17-column array for the final sheet structure.
+            // This function creates a 16-column array to perfectly match your provided header order.
             const row = [
                 entry.date,
                 entry.time,
@@ -963,7 +958,6 @@
                 row.push(
                     entry.data.item,      // Item
                     '',                   // Word
-                    '',                   // Person
                     '',                   // Activity
                     entry.data.type,      // Modality
                     entry.data.amount,    // Amount
@@ -979,7 +973,6 @@
                 row.push(
                     '',                   // Item
                     entry.data.word,      // Word
-                    '',                   // Person
                     '',                   // Activity
                     entry.data.modality,
                     '',                   // Amount
@@ -995,7 +988,6 @@
                 row.push(
                     '',                       // Item
                     '',                       // Word
-                    entry.data.person,        // Person
                     entry.data.activity,      // Activity
                     '',                       // Modality
                     '',                       // Amount
@@ -1005,11 +997,12 @@
                     '',                       // Frequency
                     entry.data.eyeContact,
                     entry.data.engagement,
-                    entry.data.notes
+                    `Person: ${entry.data.person}. ${entry.data.notes}` // Notes (with Person info)
                 );
             }
             return row;
         }
+
         async function saveToSheets(entry) {
             // Always save locally first
             entries.unshift(entry);
@@ -1113,58 +1106,75 @@
 
         function convertSheetDataToEntries(sheetData) {
             const convertedEntries = [];
+            const headers = sheetData[0].map(h => h.toLowerCase().trim());
+            
+            // Create a map of header names to their column index for robustness
+            const headerMap = {};
+            headers.forEach((header, index) => {
+                headerMap[header] = index;
+            });
             
             for (let i = 1; i < sheetData.length; i++) {
                 const row = sheetData[i];
                 if (row.length < 4) continue;
                 
                 try {
-                    const dateTime = new Date(`${row[0]} ${row[1]}`);
+                    const date = row[headerMap['date']];
+                    const time = row[headerMap['time']];
+                    if (!date) continue; // Skip rows without a date
+                    
+                    const dateTime = new Date(`${date} ${time || '00:00'}`);
                     if (isNaN(dateTime.getTime())) continue;
+
+                    const type = row[headerMap['type']];
                     
                     const entry = {
-                        date: row[0],
-                        time: row[1],
-                        type: row[2],
-                        enteredBy: row[3],
+                        date: date,
+                        time: time || '',
+                        type: type,
+                        enteredBy: row[headerMap['entered by']] || '',
                         timestamp: dateTime.getTime()
                     };
 
                     if (entry.type === 'food') {
                         entry.data = {
-                            item: row[4] || '',
-                            type: row[5] || '',
-                            amount: row[6] || '',
-                            reaction: row[7] || '',
-                            notes: row[11] || ''
+                            item: row[headerMap['item']] || '',
+                            type: row[headerMap['modality']] || '',
+                            amount: row[headerMap['amount']] || '',
+                            reaction: row[headerMap['reaction']] || '',
+                            notes: row[headerMap['notes']] || ''
                         };
                     } else if (entry.type === 'words') {
                         entry.data = {
-                            word: row[4] || '',
-                            modality: row[5] || '',
-                            clarity: row[6] || '',
-                            context: row[7] || '',
-                            frequency: row[8] || '',
-                            notes: row[11] || ''
+                            word: row[headerMap['word']] || '',
+                            modality: row[headerMap['modality']] || '',
+                            clarity: row[headerMap['clarity']] || '',
+                            context: row[headerMap['context']] || '',
+                            frequency: row[headerMap['frequency']] || '',
+                            notes: row[headerMap['notes']] || ''
                         };
                     } else if (entry.type === 'social') {
                         entry.data = {
-                            person: row[4] || '',
-                            activity: row[7] || '',
-                            eyeContact: row[9] || '',
-                            engagement: row[10] || '',
-                            notes: row[11] || ''
+                            person: '', // This will be parsed from notes if needed
+                            activity: row[headerMap['activity']] || '',
+                            eyeContact: row[headerMap['eye contact']] || '',
+                            engagement: row[headerMap['engagement']] || '',
+                            notes: row[headerMap['notes']] || ''
                         };
                     }
 
-                    convertedEntries.push(entry);
+                    if (entry.data) {
+                        convertedEntries.push(entry);
+                    }
                 } catch (error) {
+                    console.error('Error converting row:', row, error);
                     continue; // Skip malformed rows
                 }
             }
             
             return convertedEntries;
         }
+
 
         async function refreshFromSheets() {
             if (!isConnected) {
@@ -1196,7 +1206,7 @@
                 return;
             }
 
-            const headers = ['Date', 'Time', 'Type', 'Entered By', 'Item/Word', 'Modality', 'Amount/Clarity', 'Reaction/Context', 'Frequency', 'Eye Contact', 'Engagement', 'Notes'];
+            const headers = ['Date', 'Time', 'Type', 'Entered By', 'Item', 'Word', 'Activity', 'Modality', 'Amount', 'Clarity', 'Reaction', 'Context', 'Frequency', 'Eye Contact', 'Engagement', 'Notes'];
             const csvData = [headers];
 
             entries.forEach(entry => {
@@ -1285,7 +1295,7 @@
                     if (entry.data.notes) html += `<br>Notes: ${entry.data.notes}`;
                     
                 } else if (entry.type === 'social') {
-                    html += `<strong>${entry.data.person}</strong> during <strong>${entry.data.activity}</strong><br>`;
+                    html += `<strong>Interaction</strong> during <strong>${entry.data.activity}</strong><br>`;
                     html += `Eye contact: ${entry.data.eyeContact}, Engagement: ${entry.data.engagement}`;
                     if (entry.data.notes) html += `<br>Notes: ${entry.data.notes}`;
                 }
