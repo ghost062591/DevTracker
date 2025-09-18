@@ -607,7 +607,7 @@
         <div id="setup" class="tab-content">
             <div class="setup-box">
                 <h3>📋 Setup Google Sheets Integration</h3>
-                <p>The instructions below are for reference. Your sheet should already be configured with the final column layout.</p>
+                <p>Ensure your Google Sheet's first row has these headers in this exact order:</p>
                 <div style="background: #f0f0f0; padding: 10px; margin: 5px 0; border-radius: 5px; font-family: monospace; font-size: 11px; word-wrap: break-word;">
                     Date | Time | Type | Entered By | Item | Word | Activity | Modality | Amount | Clarity | Reaction | Context | Frequency | Eye Contact | Engagement | Notes
                 </div>
@@ -655,7 +655,6 @@
         document.addEventListener('DOMContentLoaded', function() {
             initializeApp();
             
-            // Listen for online/offline status
             window.addEventListener('online', handleOnlineStatus);
             window.addEventListener('offline', handleOnlineStatus);
         });
@@ -667,9 +666,8 @@
             loadLocalData();
             updateDateDisplay();
             
-            // Auto-sync if configured
             if (isConnected && isOnline) {
-                syncWithSheets();
+                refreshFromSheets();
             }
         }
 
@@ -732,18 +730,8 @@
             const sheetIdInput = document.getElementById('sheetId').value.trim();
             const webAppUrlInput = document.getElementById('webAppUrl').value.trim();
             
-            if (!userName) {
-                showStatus('Please enter your name', 'error');
-                return;
-            }
-            
-            if (!sheetIdInput) {
-                showStatus('Please enter your Google Sheet ID', 'error');
-                return;
-            }
-
-            if (!webAppUrlInput) {
-                showStatus('Please enter your Web App URL', 'error');
+            if (!userName || !sheetIdInput || !webAppUrlInput) {
+                showStatus('Please fill in all three fields.', 'error');
                 return;
             }
 
@@ -758,67 +746,43 @@
             updateUserDisplay();
             updateConnectionStatus();
             
-            // Test connection
             testConnection();
         }
 
         async function testConnection() {
             showStatus('Testing Google Sheets connection...', 'info');
             
-            if (!sheetId || !WEB_APP_URL) {
-                showStatus('Please fill in all required fields', 'error');
-                return;
-            }
-            
             try {
                 const response = await fetch(`${WEB_APP_URL}?action=test&sheetId=${sheetId}`, {
                     method: 'GET',
-                    mode: 'cors',
-                    headers: {
-                        'Accept': 'application/json',
-                    }
+                    mode: 'cors'
                 });
 
                 if (response.ok) {
                     const result = await response.json();
-                    
                     if (result.success) {
-                        showStatus('✅ Connection successful! Google Sheets integration is working.', 'success');
+                        showStatus('✅ Connection successful! Syncing data...', 'success');
                         isConnected = true;
                         updateConnectionStatus();
-                        
-                        // Auto-sync after successful connection test
-                        setTimeout(() => syncWithSheets(), 1000);
+                        refreshFromSheets();
                     } else {
-                        showStatus(`❌ Connection failed: ${result.error || 'Unknown error'}`, 'error');
-                        isConnected = false;
+                        throw new Error(result.error || 'Unknown connection error');
                     }
                 } else {
-                    showStatus(`❌ HTTP Error: ${response.status} - ${response.statusText}`, 'error');
-                    isConnected = false;
+                    throw new Error(`HTTP Error: ${response.status}`);
                 }
-                
             } catch (error) {
                 showStatus(`❌ Connection failed: ${error.message}`, 'error');
                 isConnected = false;
-                
-                if (error.message.includes('CORS') || error.message.includes('fetch')) {
-                    showStatus('CORS error - check Apps Script deployment permissions', 'error');
-                }
+                updateConnectionStatus();
             }
         }
 
         function showTab(tabName) {
-            document.querySelectorAll('.tab-content').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            
-            document.querySelectorAll('.tab-button').forEach(button => {
-                button.classList.remove('active');
-            });
-            
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-button').forEach(button => button.classList.remove('active'));
             document.getElementById(tabName).classList.add('active');
-            event.target.classList.add('active');
+            event.currentTarget.classList.add('active');
             
             if (tabName === 'view') {
                 displayAllEntries();
@@ -827,9 +791,7 @@
         }
 
         function selectRating(category, value, element) {
-            const siblings = element.parentNode.querySelectorAll('.rating-button');
-            siblings.forEach(sibling => sibling.classList.remove('selected'));
-            
+            element.parentNode.querySelectorAll('.rating-button').forEach(btn => btn.classList.remove('selected'));
             element.classList.add('selected');
             selectedRatings[category] = value;
         }
@@ -847,85 +809,69 @@
                 date: now.toISOString().split('T')[0],
                 time: now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
                 timestamp: now.getTime(),
-                enteredBy: currentUser
+                enteredBy: currentUser,
+                data: {}
             };
 
+            let isValid = true;
             if (type === 'food') {
                 const foodItem = document.getElementById('foodItem').value.trim();
                 if (!foodItem) {
                     showStatus('Please enter a food item', 'error');
-                    return;
+                    isValid = false;
                 }
-                
                 entry.data = {
                     item: foodItem,
                     type: document.getElementById('foodType').value,
                     amount: selectedRatings.foodAmount || '',
                     reaction: selectedRatings.foodReaction || '',
-                    notes: document.getElementById('foodNotes').value
+                    notes: document.getElementById('foodNotes').value.trim()
                 };
-                
-                // Clear form
-                document.getElementById('foodItem').value = '';
-                document.getElementById('foodType').value = '';
-                document.getElementById('foodNotes').value = '';
-                
             } else if (type === 'words') {
                 const wordSaid = document.getElementById('wordSaid').value.trim();
-                if (!wordSaid) {
+                 if (!wordSaid) {
                     showStatus('Please enter a word or sound', 'error');
-                    return;
+                    isValid = false;
                 }
-                
                 entry.data = {
                     word: wordSaid,
                     modality: document.getElementById('wordModality').value,
                     context: document.getElementById('wordContext').value,
                     clarity: selectedRatings.wordClarity || '',
                     frequency: selectedRatings.wordFrequency || '',
-                    notes: document.getElementById('wordNotes').value
+                    notes: document.getElementById('wordNotes').value.trim()
                 };
-                
-                // Clear form
-                document.getElementById('wordSaid').value = '';
-                document.getElementById('wordModality').value = '';
-                document.getElementById('wordContext').value = '';
-                document.getElementById('wordNotes').value = '';
-                
             } else if (type === 'social') {
                 const person = document.getElementById('socialPerson').value;
                 const activity = document.getElementById('socialActivity').value;
                 if (!person || !activity) {
                     showStatus('Please select both person and activity', 'error');
-                    return;
+                    isValid = false;
                 }
-                
                 entry.data = {
                     person: person,
                     activity: activity,
                     eyeContact: selectedRatings.socialEyeContact || '',
                     engagement: selectedRatings.socialEngagement || '',
-                    notes: document.getElementById('socialNotes').value
+                    notes: document.getElementById('socialNotes').value.trim()
                 };
-                
-                // Clear form
-                document.getElementById('socialPerson').value = '';
-                document.getElementById('socialActivity').value = '';
-                document.getElementById('socialNotes').value = '';
             }
 
-            // Clear selected ratings
-            selectedRatings = {};
-            document.querySelectorAll('.rating-button.selected').forEach(button => {
-                button.classList.remove('selected');
-            });
+            if (!isValid) return;
 
-            // Save entry
+            // Clear form fields
+            const activeTab = document.getElementById(type);
+            activeTab.querySelectorAll('input, select, textarea').forEach(el => {
+                if (el.tagName === 'SELECT') el.selectedIndex = 0;
+                else el.value = '';
+            });
+            activeTab.querySelectorAll('.rating-button.selected').forEach(btn => btn.classList.remove('selected'));
+            selectedRatings = {};
+
             saveToSheets(entry);
         }
 
         function formatEntryForSheets(entry) {
-            // This function creates a 16-column array to perfectly match your provided header order.
             const row = [
                 entry.date,
                 entry.time,
@@ -976,38 +922,30 @@
                     '',                       // Frequency
                     entry.data.eyeContact,
                     entry.data.engagement,
-                    `Person: ${entry.data.person}. ${entry.data.notes}` // Notes (with Person info)
+                    `Person: ${entry.data.person}. ${entry.data.notes}`
                 );
             }
             return row;
         }
 
         async function saveToSheets(entry) {
-            // Always save locally first
             entries.unshift(entry);
             localStorage.setItem('developmentEntries', JSON.stringify(entries));
-            localStorage.setItem('lastSyncTime', new Date().toISOString());
-            
-            showStatus('Entry saved locally!', 'success');
             updateStats();
+            displayAllEntries();
+            showStatus('Entry saved locally!', 'success');
 
-            // Try to sync with Google Sheets if connected and online
-            if (!isConnected || !isOnline || !WEB_APP_URL) {
-                if (!isOnline) {
-                    showStatus('Offline - will sync when connection is restored', 'warning');
-                }
+            if (!isConnected || !isOnline) {
+                if (!isOnline) showStatus('Offline - will sync when connection is restored', 'warning');
                 return;
             }
 
             try {
                 showStatus('Syncing to Google Sheets...', 'info');
-                
-                const rowData = formatEntryForSheets(entry);
-                
                 const requestBody = {
                     action: 'appendRow',
                     sheetId: sheetId,
-                    values: rowData
+                    values: formatEntryForSheets(entry)
                 };
                 
                 const response = await fetch(WEB_APP_URL, {
@@ -1018,7 +956,6 @@
 
                 if (response.ok) {
                     const result = await response.json();
-                    
                     if (result.success) {
                         showStatus('Entry saved to Google Sheets!', 'success');
                         lastSyncTime = new Date().toISOString();
@@ -1029,10 +966,9 @@
                 } else {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
-                
             } catch (error) {
                 console.error('Sync error:', error);
-                showStatus('Failed to sync to Google Sheets. Data saved locally.', 'warning');
+                showStatus('Failed to sync. Data is saved locally.', 'warning');
             }
         }
 
@@ -1048,27 +984,24 @@
         }
 
         async function syncWithSheets() {
-            if (!sheetId || !WEB_APP_URL || !isOnline) {
-                return;
-            }
+            if (!isConnected || !isOnline) return;
 
             try {
-                const response = await fetch(`${WEB_APP_URL}?action=getData&sheetId=${sheetId}`, {
-                    method: 'GET',
-                    mode: 'cors'
-                });
-
+                const response = await fetch(`${WEB_APP_URL}?action=getData&sheetId=${sheetId}`);
                 if (response.ok) {
                     const result = await response.json();
-                    
                     if (result.success && result.data) {
                         const sheetEntries = convertSheetDataToEntries(result.data);
                         
-                        // Merge with local entries, avoiding duplicates
                         const allEntries = [...entries, ...sheetEntries];
-                        const uniqueEntries = allEntries.filter((entry, index, self) => 
-                            index === self.findIndex(e => e.timestamp === entry.timestamp)
-                        );
+                        const uniqueTimestamps = new Set();
+                        const uniqueEntries = allEntries.filter(entry => {
+                            if (!entry.timestamp || uniqueTimestamps.has(entry.timestamp)) {
+                                return false;
+                            }
+                            uniqueTimestamps.add(entry.timestamp);
+                            return true;
+                        });
                         
                         entries = uniqueEntries.sort((a, b) => b.timestamp - a.timestamp);
                         localStorage.setItem('developmentEntries', JSON.stringify(entries));
@@ -1077,85 +1010,109 @@
                         localStorage.setItem('lastSyncTime', lastSyncTime);
                     }
                 }
-                
             } catch (error) {
                 console.error('Sync error:', error);
             }
         }
 
         function convertSheetDataToEntries(sheetData) {
-            if (!sheetData || sheetData.length < 2) {
-                return []; // No data to convert
-            }
-            const convertedEntries = [];
-            const headers = sheetData[0].map(h => h.toLowerCase().trim().replace(/\s+/g, '')); // Make headers consistent: lowercase, no spaces
-
-            const headerMap = {};
-            headers.forEach((header, index) => {
-                headerMap[header] = index;
-            });
+            if (!sheetData || sheetData.length < 2) return [];
             
-            // Check for essential headers
-            if (headerMap['date'] === undefined || headerMap['type'] === undefined) {
+            const convertedEntries = [];
+            const rawHeaders = sheetData[0];
+            const headerMap = {};
+
+            // Create a map of simplified keys to their actual index in the sheet.
+            // This is more robust against minor header name changes (e.g., "Eye Contact" vs "eyecontact").
+            const keyAliases = {
+                date: ['date'],
+                time: ['time'],
+                type: ['type'],
+                enteredby: ['entered by'],
+                item: ['item'],
+                word: ['word'],
+                activity: ['activity'],
+                modality: ['modality'],
+                amount: ['amount'],
+                clarity: ['clarity'],
+                reaction: ['reaction'],
+                context: ['context'],
+                frequency: ['frequency'],
+                eyecontact: ['eye contact'],
+                engagement: ['engagement'],
+                notes: ['notes']
+            };
+
+            for (const key in keyAliases) {
+                for (const alias of keyAliases[key]) {
+                    const foundIndex = rawHeaders.findIndex(h => h.toLowerCase().trim() === alias);
+                    if (foundIndex !== -1) {
+                        headerMap[key] = foundIndex;
+                        break;
+                    }
+                }
+            }
+
+            if (headerMap.date === undefined || headerMap.type === undefined) {
                 console.error("Essential headers 'Date' or 'Type' not found in sheet.");
                 return [];
             }
 
             for (let i = 1; i < sheetData.length; i++) {
                 const row = sheetData[i];
-                const type = (row[headerMap['type']] || '').toLowerCase();
-                if (!type) continue; // Skip rows without a type
+                const type = (row[headerMap.type] || '').toLowerCase();
+                if (!type) continue;
 
                 try {
-                    const date = row[headerMap['date']];
-                    const time = row[headerMap['time']];
+                    const date = row[headerMap.date];
                     if (!date) continue;
 
-                    const dateTime = new Date(`${date} ${time || '00:00'}`);
+                    const time = row[headerMap.time] || '00:00';
+                    const dateTime = new Date(`${date} ${time}`);
                     if (isNaN(dateTime.getTime())) continue;
 
                     const entry = {
                         date: date,
-                        time: time || '',
+                        time: time,
                         type: type,
-                        enteredBy: row[headerMap['enteredby']] || '',
+                        enteredBy: row[headerMap.enteredby] || '',
                         timestamp: dateTime.getTime(),
                         data: {}
                     };
 
                     if (type === 'food') {
                         entry.data = {
-                            item: row[headerMap['item']] || '',
-                            type: row[headerMap['modality']] || '',
-                            amount: row[headerMap['amount']] || '',
-                            reaction: row[headerMap['reaction']] || '',
-                            notes: row[headerMap['notes']] || ''
+                            item: row[headerMap.item] || '',
+                            type: row[headerMap.modality] || '',
+                            amount: row[headerMap.amount] || '',
+                            reaction: row[headerMap.reaction] || '',
+                            notes: row[headerMap.notes] || ''
                         };
                     } else if (type === 'words') {
                         entry.data = {
-                            word: row[headerMap['word']] || '',
-                            modality: row[headerMap['modality']] || '',
-                            clarity: row[headerMap['clarity']] || '',
-                            context: row[headerMap['context']] || '',
-                            frequency: row[headerMap['frequency']] || '',
-                            notes: row[headerMap['notes']] || ''
+                            word: row[headerMap.word] || '',
+                            modality: row[headerMap.modality] || '',
+                            clarity: row[headerMap.clarity] || '',
+                            context: row[headerMap.context] || '',
+                            frequency: row[headerMap.frequency] || '',
+                            notes: row[headerMap.notes] || ''
                         };
                     } else if (type === 'social') {
-                        let notes = row[headerMap['notes']] || '';
-                        let person = '';
-                        // Parse person from notes
-                        if (notes.startsWith('Person: ')) {
-                            const parts = notes.split('. ');
-                            person = parts[0].replace('Person: ', '');
-                            notes = parts.slice(1).join('. ');
+                        let notesText = row[headerMap.notes] || '';
+                        let personText = '';
+                        
+                        if (notesText.startsWith('Person: ')) {
+                            const parts = notesText.split('. ');
+                            personText = parts.shift().replace('Person: ', '');
+                            notesText = parts.join('. ');
                         }
                         
                         entry.data = {
-                            person: person,
-                            activity: row[headerMap['activity']] || '',
-                            eyeContact: row[headerMap['eyecontact']] || '',
-                            engagement: row[headerMap['engagement']] || '',
-                            notes: notes
+                            person: personText,
+                            activity: row[headerMap.activity] || '',
+                            eyeContact: row[headerMap.eyecontact] || '',
+                            engagement: row[headerMap.engagement] || '',
+                            notes: notesText
                         };
                     }
                     
@@ -1163,7 +1120,6 @@
 
                 } catch (error) {
                     console.error('Error converting row:', row, error);
-                    continue;
                 }
             }
             return convertedEntries;
@@ -1176,7 +1132,6 @@
             }
             
             showStatus('Refreshing from Google Sheets...', 'info');
-            
             await syncWithSheets();
             displayAllEntries();
             updateStats();
@@ -1188,7 +1143,6 @@
                 showStatus('Please set up Google Sheets first', 'error');
                 return;
             }
-            
             const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/edit`;
             window.open(sheetUrl, '_blank');
         }
@@ -1201,16 +1155,17 @@
 
             const headers = ['Date', 'Time', 'Type', 'Entered By', 'Item', 'Word', 'Activity', 'Modality', 'Amount', 'Clarity', 'Reaction', 'Context', 'Frequency', 'Eye Contact', 'Engagement', 'Notes'];
             const csvData = [headers];
+            const sortedEntries = [...entries].sort((a, b) => a.timestamp - b.timestamp);
 
-            entries.forEach(entry => {
+            sortedEntries.forEach(entry => {
                 csvData.push(formatEntryForSheets(entry));
             });
 
             const csvContent = csvData.map(row => 
-                row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+                row.map(cell => `"${String(cell || '').replace(/"/g, '""')}"`).join(',')
             ).join('\n');
 
-            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -1219,7 +1174,6 @@
             a.click();
             document.body.removeChild(a);
             window.URL.revokeObjectURL(url);
-
             showStatus('Data exported to CSV file', 'success');
         }
 
@@ -1239,18 +1193,18 @@
                 const timeAgo = getTimeAgo(syncDate);
                 document.getElementById('lastSync').textContent = timeAgo;
             } else {
-                document.getElementById('lastSync').textContent = '--';
+                document.getElementById('lastSync').textContent = 'Never';
             }
         }
 
         function getTimeAgo(date) {
             const now = new Date();
             const diffMs = now - date;
-            const diffMins = Math.floor(diffMs / 60000);
-            const diffHours = Math.floor(diffMs / 3600000);
-            const diffDays = Math.floor(diffMs / 86400000);
+            const diffMins = Math.round(diffMs / 60000);
+            const diffHours = Math.round(diffMs / 3600000);
+            const diffDays = Math.round(diffMs / 86400000);
 
-            if (diffMins < 1) return 'Just now';
+            if (diffMins < 2) return 'Just now';
             if (diffMins < 60) return `${diffMins}m ago`;
             if (diffHours < 24) return `${diffHours}h ago`;
             return `${diffDays}d ago`;
@@ -1267,7 +1221,7 @@
 
             let html = '<h3 style="margin-bottom: 15px;">Recent Entries</h3>';
             
-            entries.slice(0, 20).forEach(entry => {
+            entries.slice(0, 50).forEach(entry => {
                 const dateStr = `${entry.date} ${entry.time}`;
                 
                 html += `<div class="entry-card">
@@ -1277,27 +1231,27 @@
                 if (entry.type === 'food') {
                     html += `<strong>${entry.data.item}</strong>`;
                     if (entry.data.type) html += ` (${entry.data.type})`;
-                    html += `<br>Amount: ${entry.data.amount}, Reaction: ${entry.data.reaction}`;
+                    if (entry.data.amount || entry.data.reaction) html += `<br>Amount: ${entry.data.amount || 'N/A'}, Reaction: ${entry.data.reaction || 'N/A'}`;
                     if (entry.data.notes) html += `<br>Notes: ${entry.data.notes}`;
                     
                 } else if (entry.type === 'words') {
                     html += `<strong>"${entry.data.word}"</strong>`;
                     if (entry.data.modality) html += ` via ${entry.data.modality}`;
-                    html += `<br>Context: ${entry.data.context}, Clarity: ${entry.data.clarity}`;
-                    html += `<br>Frequency today: ${entry.data.frequency}`;
+                    if (entry.data.context || entry.data.clarity) html += `<br>Context: ${entry.data.context || 'N/A'}, Clarity: ${entry.data.clarity || 'N/A'}`;
+                    if (entry.data.frequency) html += `<br>Frequency today: ${entry.data.frequency}`;
                     if (entry.data.notes) html += `<br>Notes: ${entry.data.notes}`;
                     
                 } else if (entry.type === 'social') {
                     html += `<strong>Interaction with ${entry.data.person || 'someone'}</strong> during <strong>${entry.data.activity}</strong><br>`;
-                    html += `Eye contact: ${entry.data.eyeContact}, Engagement: ${entry.data.engagement}`;
+                    html += `Eye contact: ${entry.data.eyeContact || 'N/A'}, Engagement: ${entry.data.engagement || 'N/A'}`;
                     if (entry.data.notes) html += `<br>Notes: ${entry.data.notes}`;
                 }
                 
                 html += `</div></div>`;
             });
             
-            if (entries.length > 20) {
-                html += `<p style="text-align: center; color: #666; margin-top: 15px;">Showing 20 most recent entries (${entries.length} total)</p>`;
+            if (entries.length > 50) {
+                html += `<p style="text-align: center; color: #666; margin-top: 15px;">Showing 50 most recent entries (${entries.length} total)</p>`;
             }
             
             container.innerHTML = html;
@@ -1307,13 +1261,15 @@
             const statusDiv = document.getElementById('syncStatus');
             if (!statusDiv) return;
             
-            statusDiv.style.display = 'block';
             statusDiv.textContent = message;
             statusDiv.className = `status-message status-${type}`;
             
-            if (type === 'success' || type === 'error') {
+            if (type !== 'info') {
                 setTimeout(() => {
-                    statusDiv.style.display = 'none';
+                    if (statusDiv.textContent === message) {
+                       statusDiv.className = 'status-message';
+                       statusDiv.textContent = '';
+                    }
                 }, 5000);
             }
         }
