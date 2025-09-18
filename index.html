@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Development Tracker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 10px;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .date-display {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .connection-status {
+            margin-top: 10px;
+            font-size: 12px;
+            padding: 5px 10px;
+            border-radius: 15px;
+            display: inline-block;
+        }
+
+        .connected {
+            background: rgba(40, 167, 69, 0.2);
+            color: #155724;
+        }
+
+        .disconnected {
+            background: rgba(220, 53, 69, 0.2);
+            color: #721c24;
+        }
+
+        .offline-notice {
+            background: rgba(255, 193, 7, 0.2);
+            color: #856404;
+        }
+
+        .tabs {
+            display: flex;
+            background: #f8f9fa;
+            overflow-x: auto;
+        }
+
+        .tab-button {
+            flex: 1;
+            min-width: 80px;
+            padding: 15px 10px;
+            background: none;
+            border: none;
+            font-size: 13px;
+            font-weight: 600;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .tab-button.active {
+            background: white;
+            color: #4facfe;
+            border-bottom: 3px solid #4facfe;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 20px;
+            min-height: 400px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #4facfe;
+            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .rating-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .rating-button {
+            flex: 1;
+            padding: 12px;
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            cursor: pointer;
+            text-align: center;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            min-width: 60px;
+        }
+
+        .rating-button:hover {
+            background: #e9ecef;
+        }
+
+        .rating-button.selected {
+            background: #4facfe;
+            color: white;
+            border-color: #4facfe;
+        }
+
+        .save-button {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            margin-top: 10px;
+        }
+
+        .save-button:hover {
+            transform: translateY(-2px);
+        }
+
+        .save-button:active {
+            transform: translateY(0);
+        }
+
+        .save-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .entries-section {
+            margin-top: 30px;
+            border-top: 2px solid #f8f9fa;
+            padding-top: 20px;
+        }
+
+        .entry-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 4px solid #4facfe;
+        }
+
+        .entry-date {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .entry-content {
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+
+        .action-button {
+            flex: 1;
+            padding: 12px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            min-width: 120px;
+        }
+
+        .primary-button {
+            background: #28a745;
+            color: white;
+        }
+
+        .secondary-button {
+            background: #6c757d;
+            color: white;
+        }
+
+        .danger-button {
+            background: #dc3545;
+            color: white;
+        }
+
+        .action-button:hover {
+            transform: translateY(-1px);
+        }
+
+        .setup-box {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .setup-box h3 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+
+        .setup-box p,
+        .setup-box li {
+            color: #856404;
+            font-size: 14px;
+            line-height: 1.5;
+            margin-bottom: 10px;
+        }
+
+        .setup-box ol,
+        .setup-box ul {
+            margin-left: 20px;
+        }
+
+        .status-message {
+            margin: 15px 0;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .status-warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 12px;
+            text-align: center;
+            border: 2px solid #e9ecef;
+        }
+
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4facfe;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                margin: 5px;
+                border-radius: 15px;
+            }
+            
+            .tab-button {
+                font-size: 11px;
+                padding: 12px 5px;
+            }
+            
+            .rating-group {
+                gap: 5px;
+            }
+            
+            .rating-button {
+                padding: 10px 5px;
+                font-size: 14px;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+            }
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #ffffff40;
+            border-left-color: #ffffff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Development Tracker</h1>
+            <div class="date-display" id="currentDate"></div>
+            <div style="margin-top: 10px; font-size: 12px; opacity: 0.8;" id="userInfo"></div>
+            <div class="connection-status" id="connectionStatus">⚠️ Setup Required</div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-button active" onclick="showTab('food')">🍎 Food</button>
+            <button class="tab-button" onclick="showTab('words')">💬 Words</button>
+            <button class="tab-button" onclick="showTab('social')">👥 Social</button>
+            <button class="tab-button" onclick="showTab('view')">📊 View</button>
+            <button class="tab-button" onclick="showTab('setup')">⚙️ Setup</button>
+        </div>
+
+        <!-- Food Tab -->
+        <div id="food" class="tab-content active">
+            <div class="form-group">
+                <label for="foodItem">Food Item</label>
+                <input type="text" id="foodItem" placeholder="e.g., apple slices, pasta">
+            </div>
+            
+            <div class="form-group">
+                <label for="foodType">Food Type</label>
+                <select id="foodType">
+                    <option value="">Select type...</option>
+                    <option value="fruit">Fruit</option>
+                    <option value="vegetable">Vegetable</option>
+                    <option value="protein">Protein</option>
+                    <option value="grain">Grain/Carb</option>
+                    <option value="dairy">Dairy</option>
+                    <option value="snack">Snack</option>
+                    <option value="drink">Drink</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>How much did she eat?</label>
+                <div class="rating-group">
+                    <div class="rating-button" onclick="selectRating('foodAmount', 'none', this)">None</div>
+                    <div class="rating-button" onclick="selectRating('foodAmount', 'taste', this)">Taste</div>
+                    <div class="rating-button" onclick="selectRating('foodAmount', 'some', this)">Some</div>
+                    <div class="rating-button" onclick="selectRating('foodAmount', 'most', this)">Most</div>
+                    <div class="rating-button" onclick="selectRating('foodAmount', 'all', this)">All</div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Her reaction</label>
+                <div class="rating-group">
+                    <div class="rating-button" onclick="selectRating('foodReaction', 'loved', this)">😍 Loved</div>
+                    <div class="rating-button" onclick="selectRating('foodReaction', 'liked', this)">😊 Liked</div>
+                    <div class="rating-button" onclick="selectRating('foodReaction', 'neutral', this)">😐 Neutral</div>
+                    <div class="rating-button" onclick="selectRating('foodReaction', 'disliked', this)">😞 Disliked</div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="foodNotes">Notes</label>
+                <textarea id="foodNotes" placeholder="Any additional observations..."></textarea>
+            </div>
+
+            <button class="save-button" onclick="saveEntry('food')">Save Food Entry</button>
+        </div>
+
+        <!-- Words Tab -->
+        <div id="words" class="tab-content">
+            <div class="form-group">
+                <label for="wordSaid">Word/Sound</label>
+                <input type="text" id="wordSaid" placeholder="e.g., mama, ba-ba, dog">
+            </div>
+
+            <div class="form-group">
+                <label for="wordModality">Modality</label>
+                <select id="wordModality">
+                    <option value="">Select modality...</option>
+                    <option value="speech">Speech</option>
+                    <option value="sign">Sign Language</option>
+                    <option value="gesture">Gesture</option>
+                    <option value="picture">Picture/Visual</option>
+                    <option value="device">Communication Device</option>
+                    <option value="writing">Writing/Drawing</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="wordContext">Context/Situation</label>
+                <select id="wordContext">
+                    <option value="">Select context...</option>
+                    <option value="requesting">Requesting something</option>
+                    <option value="labeling">Labeling/naming</option>
+                    <option value="greeting">Greeting</option>
+                    <option value="playing">During play</option>
+                    <option value="eating">During meals</option>
+                    <option value="book">Looking at books</option>
+                    <option value="random">Spontaneous</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Clarity</label>
+                <div class="rating-group">
+                    <div class="rating-button" onclick="selectRating('wordClarity', 'unclear', this)">Unclear</div>
+                    <div class="rating-button" onclick="selectRating('wordClarity', 'somewhat', this)">Somewhat</div>
+                    <div class="rating-button" onclick="selectRating('wordClarity', 'clear', this)">Clear</div>
+                    <div class="rating-button" onclick="selectRating('wordClarity', 'very-clear', this)">Very Clear</div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>How many times today?</label>
+                <div class="rating-group">
+                    <div class="rating-button" onclick="selectRating('wordFrequency', '1', this)">1</div>
+                    <div class="rating-button" onclick="selectRating('wordFrequency', '2-3', this)">2-3</div>
+                    <div class="rating-button" onclick="selectRating('wordFrequency', '4-5', this)">4-5</div>
+                    <div class="rating-button" onclick="selectRating('wordFrequency', '6+', this)">6+</div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="wordNotes">Notes</label>
+                <textarea id="wordNotes" placeholder="Any additional observations..."></textarea>
+            </div>
+
+            <button class="save-button" onclick="saveEntry('words')">Save Word Entry</button>
+        </div>
+
+        <!-- Social Tab -->
+        <div id="social" class="tab-content">
+            <div class="form-group">
+                <label for="socialPerson">Person/People</label>
+                <select id="socialPerson">
+                    <option value="">Select person...</option>
+                    <option value="mom">Mom</option>
+                    <option value="dad">Dad</option>
+                    <option value="sibling">Sibling</option>
+                    <option value="grandparent">Grandparent</option>
+                    <option value="therapist">Therapist</option>
+                    <option value="new-adult">New Adult</option>
+                    <option value="new-child">New Child</option>
+                    <option value="group">Group</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="socialActivity">Activity/Setting</label>
+                <select id="socialActivity">
+                    <option value="">Select activity...</option>
+                    <option value="play">Free play</option>
+                    <option value="meal">Mealtime</option>
+                    <option value="book">Reading/books</option>
+                    <option value="outside">Outside time</option>
+                    <option value="therapy">Therapy session</option>
+                    <option value="outing">Out and about</option>
+                    <option value="routine">Daily routine</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Eye Contact</label>
+                <div class="rating-group">
+                    <div class="rating-button" onclick="selectRating('socialEyeContact', 'none', this)">None</div>
+                    <div class="rating-button" onclick="selectRating('socialEyeContact', 'brief', this)">Brief</div>
+                    <div class="rating-button" onclick="selectRating('socialEyeContact', 'some', this)">Some</div>
+                    <div class="rating-button" onclick="selectRating('socialEyeContact', 'good', this)">Good</div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Interaction Level</label>
+                <div class="rating-group">
+                    <div class="rating-button" onclick="selectRating('socialEngagement', 'avoided', this)">Avoided</div>
+                    <div class="rating-button" onclick="selectRating('socialEngagement', 'observed', this)">Observed</div>
+                    <div class="rating-button" onclick="selectRating('socialEngagement', 'participated', this)">Participated</div>
+                    <div class="rating-button" onclick="selectRating('socialEngagement', 'initiated', this)">Initiated</div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="socialNotes">Notes</label>
+                <textarea id="socialNotes" placeholder="Describe the interaction..."></textarea>
+            </div>
+
+            <button class="save-button" onclick="saveEntry('social')">Save Social Entry</button>
+        </div>
+
+        <!-- View Data Tab -->
+        <div id="view" class="tab-content">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalEntries">0</div>
+                    <div class="stat-label">Total Entries</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="todayEntries">0</div>
+                    <div class="stat-label">Today's Entries</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="weekEntries">0</div>
+                    <div class="stat-label">This Week</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="lastSync">--</div>
+                    <div class="stat-label">Last Sync</div>
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <button class="action-button primary-button" onclick="refreshFromSheets()">🔄 Refresh</button>
+                <button class="action-button secondary-button" onclick="openGoogleSheet()">📊 Open Sheet</button>
+                <button class="action-button secondary-button" onclick="exportToCSV()">📥 Export CSV</button>
+            </div>
+
+            <div id="allEntries"></div>
+        </div>
+
+        <!-- Setup Tab -->
+        <div id="setup" class="tab-content">
+            <div class="setup-box">
+                <h3>📋 Setup Google Sheets Integration</h3>
+                <p><strong>One-time setup for family sharing:</strong></p>
+                <ol>
+                    <li><strong>Create Google Sheet:</strong>
+                        <ul>
+                            <li>Go to <a href="https://sheets.google.com" target="_blank">sheets.google.com</a></li>
+                            <li>Create new blank spreadsheet</li>
+                            <li>Name it "Development Tracker"</li>
+                        </ul>
+                    </li>
+                    <li><strong>Set up column headers in Row 1:</strong><br>
+                        <div style="background: #f0f0f0; padding: 10px; margin: 5px 0; border-radius: 5px; font-family: monospace; font-size: 12px;">
+                            Date | Time | Type | Entered By | Item/Word | Modality | Amount/Clarity | Reaction/Context | Frequency | Eye Contact | Engagement | Notes
+                        </div>
+                    </li>
+                    <li><strong>Share the sheet:</strong> Click "Share" → "Anyone with the link" → "Editor"</li>
+                    <li><strong>Create Apps Script:</strong>
+                        <ul>
+                            <li>Go to <a href="https://script.google.com" target="_blank">script.google.com</a></li>
+                            <li>Create new project</li>
+                            <li>Replace Code.gs with the provided Apps Script code</li>
+                            <li>Deploy as Web App with "Anyone" access</li>
+                        </ul>
+                    </li>
+                    <li><strong>Configure below</strong> with your details</li>
+                </ol>
+            </div>
+
+            <div class="form-group">
+                <label for="userName">Your Name</label>
+                <input type="text" id="userName" placeholder="Enter your name (e.g., Mom, Dad, Grandma)">
+            </div>
+
+            <div class="form-group">
+                <label for="sheetId">Google Sheet ID</label>
+                <input type="text" id="sheetId" placeholder="Paste your Google Sheet ID here">
+                <small style="color: #666; font-size: 12px; display: block; margin-top: 5px;">
+                    Find this in your sheet URL: docs.google.com/spreadsheets/d/<strong>SHEET_ID</strong>/edit
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label for="webAppUrl">Apps Script Web App URL</label>
+                <input type="text" id="webAppUrl" placeholder="Paste your Web App URL here">
+                <small style="color: #666; font-size: 12px; display: block; margin-top: 5px;">
+                    This should end with /exec from your Apps Script deployment
+                </small>
+            </div>
+
+            <button class="save-button" onclick="saveSettings()">Save Settings & Test Connection</button>
+
+            <div id="syncStatus"></div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let entries = [];
+        let selectedRatings = {};
+        let currentUser = localStorage.getItem('currentUser') || '';
+        let sheetId = localStorage.getItem('sheetId') || '1jBwiyD-Rzggur8P-cWtNuOCE8khnUurl6JzPVn8ZDUo';
+        let WEB_APP_URL = localStorage.getItem('webAppUrl') || 'https://script.google.com/macros/s/AKfycbyVy-kH4uHpv1jbLDbbxBa9A9Ln7binwPUsQlDQeHBR_Ulqc-iefnXOf7SbiQW9COpLxg/exec';
+        let isConnected = false;
+        let lastSyncTime = localStorage.getItem('lastSyncTime') || '';
+        let isOnline = navigator.onLine;
+
+        // App initialization
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+            
+            // Listen for online/offline status
+            window.addEventListener('online', handleOnlineStatus);
+            window.addEventListener('offline', handleOnlineStatus);
+        });
+
+        function initializeApp() {
+            loadSettings();
+            updateUserDisplay();
+            updateConnectionStatus();
+            loadLocalData();
+            updateDateDisplay();
+            
+            // Auto-sync if configured
+            if (isConnected && isOnline) {
+                syncWithSheets();
+            }
+        }
+
+        function updateDateDisplay() {
+            document.getElementById('currentDate').textContent = new Date().toLocaleDateString('en-US', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
+        }
+
+        function handleOnlineStatus() {
+            isOnline = navigator.onLine;
+            updateConnectionStatus();
+            
+            if (isOnline && isConnected) {
+                syncWithSheets();
+            }
+        }
+
+        function loadSettings() {
+            document.getElementById('userName').value = currentUser;
+            document.getElementById('sheetId').value = sheetId;
+            document.getElementById('webAppUrl').value = WEB_APP_URL;
+        }
+
+        function updateUserDisplay() {
+            const userInfo = document.getElementById('userInfo');
+            if (currentUser) {
+                userInfo.textContent = `Logged in as: ${currentUser}`;
+            } else {
+                userInfo.textContent = 'Please set your name in Setup';
+            }
+        }
+
+        function updateConnectionStatus() {
+            const statusEl = document.getElementById('connectionStatus');
+            if (!statusEl) return;
+            
+            if (!isOnline) {
+                statusEl.textContent = '📱 Offline Mode';
+                statusEl.className = 'connection-status offline-notice';
+                return;
+            }
+            
+            if (sheetId && currentUser && WEB_APP_URL && !WEB_APP_URL.includes('YOUR_WEB_APP_ID')) {
+                statusEl.textContent = '✅ Connected';
+                statusEl.className = 'connection-status connected';
+                isConnected = true;
+            } else {
+                statusEl.textContent = '⚠️ Setup Required';
+                statusEl.className = 'connection-status disconnected';
+                isConnected = false;
+            }
+        }
+
+        function saveSettings() {
+            const userName = document.getElementById('userName').value.trim();
+            const sheetIdInput = document.getElementById('sheetId').value.trim();
+            const webAppUrlInput = document.getElementById('webAppUrl').value.trim();
+            
+            if (!userName) {
+                showStatus('Please enter your name', 'error');
+                return;
+            }
+            
+            if (!sheetIdInput) {
+                showStatus('Please enter your Google Sheet ID', 'error');
+                return;
+            }
+
+            if (!webAppUrlInput) {
+                showStatus('Please enter your Web App URL', 'error');
+                return;
+            }
+
+            currentUser = userName;
+            sheetId = sheetIdInput;
+            WEB_APP_URL = webAppUrlInput;
+            
+            localStorage.setItem('currentUser', currentUser);
+            localStorage.setItem('sheetId', sheetId);
+            localStorage.setItem('webAppUrl', WEB_APP_URL);
+            
+            updateUserDisplay();
+            updateConnectionStatus();
+            
+            // Test connection
+            testConnection();
+        }
+
+        async function testConnection() {
+            showStatus('Testing Google Sheets connection...', 'info');
+            
+            if (!sheetId || !WEB_APP_URL) {
+                showStatus('Please fill in all required fields', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${WEB_APP_URL}?action=test&sheetId=${sheetId}`, {
+                    method: 'GET',
+                    mode: 'cors',
+                    headers: {
+                        'Accept': 'application/json',
+                    }
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        showStatus('✅ Connection successful! Google Sheets integration is working.', 'success');
+                        isConnected = true;
+                        updateConnectionStatus();
+                        
+                        // Auto-sync after successful connection test
+                        setTimeout(() => syncWithSheets(), 1000);
+                    } else {
+                        showStatus(`❌ Connection failed: ${result.error || 'Unknown error'}`, 'error');
+                        isConnected = false;
+                    }
+                } else {
+                    showStatus(`❌ HTTP Error: ${response.status} - ${response.statusText}`, 'error');
+                    isConnected = false;
+                }
+                
+            } catch (error) {
+                showStatus(`❌ Connection failed: ${error.message}`, 'error');
+                isConnected = false;
+                
+                if (error.message.includes('CORS') || error.message.includes('fetch')) {
+                    showStatus('CORS error - check Apps Script deployment permissions', 'error');
+                }
+            }
+        }
+
+        function showTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('active');
+            });
+            
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+            
+            if (tabName === 'view') {
+                displayAllEntries();
+                updateStats();
+            }
+        }
+
+        function selectRating(category, value, element) {
+            const siblings = element.parentNode.querySelectorAll('.rating-button');
+            siblings.forEach(sibling => sibling.classList.remove('selected'));
+            
+            element.classList.add('selected');
+            selectedRatings[category] = value;
+        }
+
+        function saveEntry(type) {
+            if (!currentUser) {
+                showStatus('Please set your name in Setup first', 'error');
+                showTab('setup');
+                return;
+            }
+
+            const now = new Date();
+            const entry = {
+                type: type,
+                date: now.toISOString().split('T')[0],
+                time: now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+                timestamp: now.getTime(),
+                enteredBy: currentUser
+            };
+
+            if (type === 'food') {
+                const foodItem = document.getElementById('foodItem').value.trim();
+                if (!foodItem) {
+                    showStatus('Please enter a food item', 'error');
+                    return;
+                }
+                
+                entry.data = {
+                    item: foodItem,
+                    type: document.getElementById('foodType').value,
+                    amount: selectedRatings.foodAmount || '',
+                    reaction: selectedRatings.foodReaction || '',
+                    notes: document.getElementById('foodNotes').value
+                };
+                
+                // Clear form
+                document.getElementById('foodItem').value = '';
+                document.getElementById('foodType').value = '';
+                document.getElementById('foodNotes').value = '';
+                
+            } else if (type === 'words') {
+                const wordSaid = document.getElementById('wordSaid').value.trim();
+                if (!wordSaid) {
+                    showStatus('Please enter a word or sound', 'error');
+                    return;
+                }
+                
+                entry.data = {
+                    word: wordSaid,
+                    modality: document.getElementById('wordModality').value,
+                    context: document.getElementById('wordContext').value,
+                    clarity: selectedRatings.wordClarity || '',
+                    frequency: selectedRatings.wordFrequency || '',
+                    notes: document.getElementById('wordNotes').value
+                };
+                
+                // Clear form
+                document.getElementById('wordSaid').value = '';
+                document.getElementById('wordModality').value = '';
+                document.getElementById('wordContext').value = '';
+                document.getElementById('wordNotes').value = '';
+                
+            } else if (type === 'social') {
+                const person = document.getElementById('socialPerson').value;
+                const activity = document.getElementById('socialActivity').value;
+                if (!person || !activity) {
+                    showStatus('Please select both person and activity', 'error');
+                    return;
+                }
+                
+                entry.data = {
+                    person: person,
+                    activity: activity,
+                    eyeContact: selectedRatings.socialEyeContact || '',
+                    engagement: selectedRatings.socialEngagement || '',
+                    notes: document.getElementById('socialNotes').value
+                };
+                
+                // Clear form
+                document.getElementById('socialPerson').value = '';
+                document.getElementById('socialActivity').value = '';
+                document.getElementById('socialNotes').value = '';
+            }
+
+            // Clear selected ratings
+            selectedRatings = {};
+            document.querySelectorAll('.rating-button.selected').forEach(button => {
+                button.classList.remove('selected');
+            });
+
+            // Save entry
+            saveToSheets(entry);
+        }
+
+        function formatEntryForSheets(entry) {
+            const row = [
+                entry.date,
+                entry.time,
+                entry.type,
+                entry.enteredBy
+            ];
+
+            if (entry.type === 'food') {
+                row.push(
+                    entry.data.item,      // Item/Word
+                    entry.data.type,      // Modality (using for food type)
+                    entry.data.amount,    // Amount/Clarity
+                    entry.data.reaction,  // Reaction/Context
+                    '',                   // Frequency
+                    '',                   // Eye Contact
+                    '',                   // Engagement
+                    entry.data.notes      // Notes
+                );
+            } else if (entry.type === 'words') {
+                row.push(
+                    entry.data.word,
+                    entry.data.modality,
+                    entry.data.clarity,
+                    entry.data.context,
+                    entry.data.frequency,
+                    '',
+                    '',
+                    entry.data.notes
+                );
+            } else if (entry.type === 'social') {
+                row.push(
+                    entry.data.person,
+                    '',
+                    '',
+                    entry.data.activity,
+                    '',
+                    entry.data.eyeContact,
+                    entry.data.engagement,
+                    entry.data.notes
+                );
+            }
+
+            return row;
+        }
+
+        async function saveToSheets(entry) {
+            // Always save locally first
+            entries.unshift(entry);
+            localStorage.setItem('developmentEntries', JSON.stringify(entries));
+            localStorage.setItem('lastSyncTime', new Date().toISOString());
+            
+            showStatus('Entry saved locally!', 'success');
+            updateStats();
+
+            // Try to sync with Google Sheets if connected and online
+            if (!isConnected || !isOnline || !WEB_APP_URL) {
+                if (!isOnline) {
+                    showStatus('Offline - will sync when connection is restored', 'warning');
+                }
+                return;
+            }
+
+            try {
+                showStatus('Syncing to Google Sheets...', 'info');
+                
+                const rowData = formatEntryForSheets(entry);
+                
+                const requestBody = {
+                    action: 'appendRow',
+                    sheetId: sheetId,
+                    values: rowData
+                };
+                
+                const response = await fetch(WEB_APP_URL, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        showStatus('Entry saved to Google Sheets!', 'success');
+                        lastSyncTime = new Date().toISOString();
+                        localStorage.setItem('lastSyncTime', lastSyncTime);
+                    } else {
+                        throw new Error(result.error || 'Unknown error from Apps Script');
+                    }
+                } else {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+            } catch (error) {
+                console.error('Sync error:', error);
+                showStatus('Failed to sync to Google Sheets. Data saved locally.', 'warning');
+            }
+        }
+
+        function loadLocalData() {
+            try {
+                const localEntries = JSON.parse(localStorage.getItem('developmentEntries')) || [];
+                entries = localEntries;
+                lastSyncTime = localStorage.getItem('lastSyncTime') || '';
+            } catch (error) {
+                entries = [];
+                lastSyncTime = '';
+            }
+        }
+
+        async function syncWithSheets() {
+            if (!sheetId || !WEB_APP_URL || !isOnline) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${WEB_APP_URL}?action=getData&sheetId=${sheetId}`, {
+                    method: 'GET',
+                    mode: 'cors'
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    
+                    if (result.success && result.data) {
+                        const sheetEntries = convertSheetDataToEntries(result.data);
+                        
+                        // Merge with local entries, avoiding duplicates
+                        const allEntries = [...entries, ...sheetEntries];
+                        const uniqueEntries = allEntries.filter((entry, index, self) => 
+                            index === self.findIndex(e => e.timestamp === entry.timestamp)
+                        );
+                        
+                        entries = uniqueEntries.sort((a, b) => b.timestamp - a.timestamp);
+                        localStorage.setItem('developmentEntries', JSON.stringify(entries));
+                        
+                        lastSyncTime = new Date().toISOString();
+                        localStorage.setItem('lastSyncTime', lastSyncTime);
+                    }
+                }
+                
+            } catch (error) {
+                console.error('Sync error:', error);
+            }
+        }
+
+        function convertSheetDataToEntries(sheetData) {
+            const convertedEntries = [];
+            
+            for (let i = 1; i < sheetData.length; i++) {
+                const row = sheetData[i];
+                if (row.length < 4) continue;
+                
+                try {
+                    const dateTime = new Date(`${row[0]} ${row[1]}`);
+                    if (isNaN(dateTime.getTime())) continue;
+                    
+                    const entry = {
+                        date: row[0],
+                        time: row[1],
+                        type: row[2],
+                        enteredBy: row[3],
+                        timestamp: dateTime.getTime()
+                    };
+
+                    if (entry.type === 'food') {
+                        entry.data = {
+                            item: row[4] || '',
+                            type: row[5] || '',
+                            amount: row[6] || '',
+                            reaction: row[7] || '',
+                            notes: row[11] || ''
+                        };
+                    } else if (entry.type === 'words') {
+                        entry.data = {
+                            word: row[4] || '',
+                            modality: row[5] || '',
+                            clarity: row[6] || '',
+                            context: row[7] || '',
+                            frequency: row[8] || '',
+                            notes: row[11] || ''
+                        };
+                    } else if (entry.type === 'social') {
+                        entry.data = {
+                            person: row[4] || '',
+                            activity: row[7] || '',
+                            eyeContact: row[9] || '',
+                            engagement: row[10] || '',
+                            notes: row[11] || ''
+                        };
+                    }
+
+                    convertedEntries.push(entry);
+                } catch (error) {
+                    continue; // Skip malformed rows
+                }
+            }
+            
+            return convertedEntries;
+        }
+
+        async function refreshFromSheets() {
+            if (!isConnected) {
+                showStatus('Please set up Google Sheets first', 'error');
+                return;
+            }
+            
+            showStatus('Refreshing from Google Sheets...', 'info');
+            
+            await syncWithSheets();
+            displayAllEntries();
+            updateStats();
+            showStatus('Data refreshed!', 'success');
+        }
+
+        function openGoogleSheet() {
+            if (!sheetId) {
+                showStatus('Please set up Google Sheets first', 'error');
+                return;
+            }
+            
+            const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/edit`;
+            window.open(sheetUrl, '_blank');
+        }
+
+        function exportToCSV() {
+            if (entries.length === 0) {
+                showStatus('No data to export', 'warning');
+                return;
+            }
+
+            const headers = ['Date', 'Time', 'Type', 'Entered By', 'Item/Word', 'Modality', 'Amount/Clarity', 'Reaction/Context', 'Frequency', 'Eye Contact', 'Engagement', 'Notes'];
+            const csvData = [headers];
+
+            entries.forEach(entry => {
+                csvData.push(formatEntryForSheets(entry));
+            });
+
+            const csvContent = csvData.map(row => 
+                row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+            ).join('\n');
+
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `development-tracker-${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+
+            showStatus('Data exported to CSV file', 'success');
+        }
+
+        function updateStats() {
+            const today = new Date().toISOString().split('T')[0];
+            const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+            const todayCount = entries.filter(e => e.date === today).length;
+            const weekCount = entries.filter(e => e.date >= weekAgo).length;
+
+            document.getElementById('totalEntries').textContent = entries.length;
+            document.getElementById('todayEntries').textContent = todayCount;
+            document.getElementById('weekEntries').textContent = weekCount;
+            
+            if (lastSyncTime) {
+                const syncDate = new Date(lastSyncTime);
+                const timeAgo = getTimeAgo(syncDate);
+                document.getElementById('lastSync').textContent = timeAgo;
+            } else {
+                document.getElementById('lastSync').textContent = '--';
+            }
+        }
+
+        function getTimeAgo(date) {
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+
+            if (diffMins < 1) return 'Just now';
+            if (diffMins < 60) return `${diffMins}m ago`;
+            if (diffHours < 24) return `${diffHours}h ago`;
+            return `${diffDays}d ago`;
+        }
+
+        function displayAllEntries() {
+            const container = document.getElementById('allEntries');
+            if (!container) return;
+            
+            if (entries.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">No entries yet. Start tracking to see your data here!</p>';
+                return;
+            }
+
+            let html = '<h3 style="margin-bottom: 15px;">Recent Entries</h3>';
+            
+            entries.slice(0, 20).forEach(entry => {
+                const dateStr = `${entry.date} ${entry.time}`;
+                
+                html += `<div class="entry-card">
+                    <div class="entry-date">${dateStr} - ${entry.type.toUpperCase()} (by ${entry.enteredBy})</div>
+                    <div class="entry-content">`;
+                
+                if (entry.type === 'food') {
+                    html += `<strong>${entry.data.item}</strong>`;
+                    if (entry.data.type) html += ` (${entry.data.type})`;
+                    html += `<br>Amount: ${entry.data.amount}, Reaction: ${entry.data.reaction}`;
+                    if (entry.data.notes) html += `<br>Notes: ${entry.data.notes}`;
+                    
+                } else if (entry.type === 'words') {
+                    html += `<strong>"${entry.data.word}"</strong>`;
+                    if (entry.data.modality) html += ` via ${entry.data.modality}`;
+                    html += `<br>Context: ${entry.data.context}, Clarity: ${entry.data.clarity}`;
+                    html += `<br>Frequency today: ${entry.data.frequency}`;
+                    if (entry.data.notes) html += `<br>Notes: ${entry.data.notes}`;
+                    
+                } else if (entry.type === 'social') {
+                    html += `<strong>${entry.data.person}</strong> during <strong>${entry.data.activity}</strong><br>`;
+                    html += `Eye contact: ${entry.data.eyeContact}, Engagement: ${entry.data.engagement}`;
+                    if (entry.data.notes) html += `<br>Notes: ${entry.data.notes}`;
+                }
+                
+                html += `</div></div>`;
+            });
+            
+            if (entries.length > 20) {
+                html += `<p style="text-align: center; color: #666; margin-top: 15px;">Showing 20 most recent entries (${entries.length} total)</p>`;
+            }
+            
+            container.innerHTML = html;
+        }
+
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('syncStatus');
+            if (!statusDiv) return;
+            
+            statusDiv.style.display = 'block';
+            statusDiv.textContent = message;
+            statusDiv.className = `status-message status-${type}`;
+            
+            if (type === 'success' || type === 'error') {
+                setTimeout(() => {
+                    statusDiv.style.display = 'none';
+                }, 5000);
+            }
+        }
+    </script>
+</body>
+</html>
