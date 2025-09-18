@@ -951,6 +951,7 @@
         }
 
         function formatEntryForSheets(entry) {
+            // This function creates a 17-column array for the final sheet structure.
             const row = [
                 entry.date,
                 entry.time,
@@ -960,10 +961,15 @@
 
             if (entry.type === 'food') {
                 row.push(
-                    entry.data.item,      // Item/Word
-                    entry.data.type,      // Modality (using for food type)
-                    entry.data.amount,    // Amount/Clarity
-                    entry.data.reaction,  // Reaction/Context
+                    entry.data.item,      // Item
+                    '',                   // Word
+                    '',                   // Person
+                    '',                   // Activity
+                    entry.data.type,      // Modality
+                    entry.data.amount,    // Amount
+                    '',                   // Clarity
+                    entry.data.reaction,  // Reaction
+                    '',                   // Context
                     '',                   // Frequency
                     '',                   // Eye Contact
                     '',                   // Engagement
@@ -971,31 +977,39 @@
                 );
             } else if (entry.type === 'words') {
                 row.push(
-                    entry.data.word,
+                    '',                   // Item
+                    entry.data.word,      // Word
+                    '',                   // Person
+                    '',                   // Activity
                     entry.data.modality,
-                    entry.data.clarity,
-                    entry.data.context,
+                    '',                   // Amount
+                    entry.data.clarity,   // Clarity
+                    '',                   // Reaction
+                    entry.data.context,   // Context
                     entry.data.frequency,
-                    '',
-                    '',
+                    '',                   // Eye Contact
+                    '',                   // Engagement
                     entry.data.notes
                 );
             } else if (entry.type === 'social') {
                 row.push(
-                    entry.data.person,
-                    '',
-                    '',
-                    entry.data.activity,
-                    '',
+                    '',                       // Item
+                    '',                       // Word
+                    entry.data.person,        // Person
+                    entry.data.activity,      // Activity
+                    '',                       // Modality
+                    '',                       // Amount
+                    '',                       // Clarity
+                    '',                       // Reaction
+                    '',                       // Context
+                    '',                       // Frequency
                     entry.data.eyeContact,
                     entry.data.engagement,
                     entry.data.notes
                 );
             }
-
             return row;
         }
-
         async function saveToSheets(entry) {
             // Always save locally first
             entries.unshift(entry);
