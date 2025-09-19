@@ -750,24 +750,29 @@
         }
 
         async function testConnection() {
-            showStatus('Testing Google Sheets connection...', 'info');
+            showStatus('Testing n8n connection...', 'info');
             
             try {
-                // The test now just checks if the n8n endpoint is reachable with a GET request.
-                const response = await fetch(`${WEB_APP_URL}?action=test&sheetId=${sheetId}`, {
-                    method: 'GET',
-                    mode: 'cors'
+                // This test now sends a POST request, just like a real entry.
+                const requestBody = {
+                    action: 'test',
+                    sheetId: sheetId // Send sheetId in the body for consistency
+                };
+
+                const response = await fetch(WEB_APP_URL, {
+                    method: 'POST',
+                    mode: 'cors',
+                    body: JSON.stringify(requestBody)
                 });
 
                 if (response.ok) {
-                    // If we get a 200-299 status, the connection is good. No need to check the JSON body.
+                    // If we get a 200 OK status, the endpoint is active and reachable.
                     showStatus('✅ Connection successful! Syncing data...', 'success');
                     isConnected = true;
                     updateConnectionStatus();
                     refreshFromSheets();
                 } else {
-                    // If we get a 404 or other error, the connection failed.
-                    throw new Error(`Endpoint not found or inactive (Status: ${response.status})`);
+                    throw new Error(`Endpoint error (Status: ${response.status})`);
                 }
             } catch (error) {
                 showStatus(`❌ Connection failed: ${error.message}`, 'error');
